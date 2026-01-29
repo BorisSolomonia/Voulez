@@ -254,6 +254,12 @@ export class HybridSyncOrchestrator {
     const inventoryUpdates: WoltInventoryItem[] = [];
 
     for (const item of topItems) {
+      // Validate item data before sending to Wolt
+      if (!item.woltSku || typeof item.price !== 'number' || item.price < 0) {
+        log.warn(`[PrioritySync] Skipping item with invalid data: sku=${item.woltSku}, price=${item.price}`);
+        continue;
+      }
+
       itemUpdates.push({
         sku: item.woltSku,
         enabled: item.rest > 0,
