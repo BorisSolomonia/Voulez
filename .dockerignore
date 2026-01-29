@@ -1,0 +1,47 @@
+# Dependencies (will be installed in container)
+node_modules/
+
+# Git
+.git/
+.gitignore
+
+# Build output (will be built in container)
+dist/
+
+# Environment files
+.env
+.env.*
+
+# Logs and state (mounted as volumes in production)
+logs/
+state/
+*.log
+
+# Documentation
+*.md
+docs/
+API Documentation/
+
+# Tests (not needed in production image)
+tests/
+coverage/
+.nyc_output/
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Scripts (development only)
+scripts/
+
+# Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

@@ -1,0 +1,161 @@
+# Wolt Sync System - Docker Compose Configuration
+# ================================================
+# Configured Stores: 2, 4, 7, 8, 9, 10, 17
+#
+# Deploy all stores: docker-compose up -d
+# Deploy single store: docker-compose up -d wolt-sync-all
+# View logs: docker-compose logs -f
+# Stop: docker-compose down
+
+version: '3.8'
+
+services:
+  # All-in-one mode (recommended for simple deployments)
+  wolt-sync-all:
+    build: .
+    container_name: wolt-sync-all
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./logs:/app/logs
+      - ./state:/app/state
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Per-store mode (for production with process isolation)
+
+  wolt-sync-2:
+    build: .
+    container_name: wolt-sync-2
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - STORE_ID=2
+      - HEALTH_PORT=3002
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./logs:/app/logs
+      - ./state:/app/state
+    profiles:
+      - per-store
+
+  wolt-sync-4:
+    build: .
+    container_name: wolt-sync-4
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - STORE_ID=4
+      - HEALTH_PORT=3004
+    ports:
+      - "3004:3004"
+    volumes:
+      - ./logs:/app/logs
+      - ./state:/app/state
+    profiles:
+      - per-store
+
+  wolt-sync-7:
+    build: .
+    container_name: wolt-sync-7
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - STORE_ID=7
+      - HEALTH_PORT=3007
+    ports:
+      - "3007:3007"
+    volumes:
+      - ./logs:/app/logs
+      - ./state:/app/state
+    profiles:
+      - per-store
+
+  wolt-sync-8:
+    build: .
+    container_name: wolt-sync-8
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - STORE_ID=8
+      - HEALTH_PORT=3008
+    ports:
+      - "3008:3008"
+    volumes:
+      - ./logs:/app/logs
+      - ./state:/app/state
+    profiles:
+      - per-store
+
+  wolt-sync-9:
+    build: .
+    container_name: wolt-sync-9
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - STORE_ID=9
+      - HEALTH_PORT=3009
+    ports:
+      - "3009:3009"
+    volumes:
+      - ./logs:/app/logs
+      - ./state:/app/state
+    profiles:
+      - per-store
+
+  wolt-sync-10:
+    build: .
+    container_name: wolt-sync-10
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - STORE_ID=10
+      - HEALTH_PORT=3010
+    ports:
+      - "3010:3010"
+    volumes:
+      - ./logs:/app/logs
+      - ./state:/app/state
+    profiles:
+      - per-store
+
+  wolt-sync-17:
+    build: .
+    container_name: wolt-sync-17
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - STORE_ID=17
+      - HEALTH_PORT=3017
+    ports:
+      - "3017:3017"
+    volumes:
+      - ./logs:/app/logs
+      - ./state:/app/state
+    profiles:
+      - per-store
