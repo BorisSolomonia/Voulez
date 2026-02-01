@@ -43,6 +43,12 @@ export class PriorityScorer {
     let score = 0;
     const reasons: string[] = [];
 
+    // CRITICAL: Items without valid prices cannot be synced to Wolt
+    // Skip them entirely (they can't be listed for sale)
+    if (typeof detail.price !== 'number' || detail.price < 0) {
+      return { score: 0, reason: 'invalid-price' };
+    }
+
     // Critical: In-stock items get highest priority
     if (inventory.rest > 0) {
       score += this.config.inStockWeight;
@@ -121,7 +127,15 @@ export class PriorityScorer {
    * Get top N priority items
    */
   getTopPriority(scoredItems: PriorityScoredItem[], limit: number): PriorityScoredItem[] {
-    const top = scoredItems.slice(0, limit);
+    // Filter out items with score 0 (out of stock, invalid price, etc.)
+    const validItems = scoredItems.filter(item => item.priority > 0);
+
+    if (validItems.length === 0) {
+      logger.warn(`[Priority] No items with valid priority scores found (all items have score 0)`);
+      return [];
+    }
+
+    const top = validItems.slice(0, limit);
 
     if (top.length > 0) {
       logger.info(`[Priority] Selected top ${top.length} items (priority range: ${top[0].priority} - ${top[top.length - 1].priority})`);

@@ -143,8 +143,19 @@ export class SyncEngine {
         const woltSku = finaIdToWoltSku.get(product.id);
         if (!woltSku) continue;
 
-        const quantity = stockMap.get(product.id) || 0;
-        const enabled = quantity > 0;
+        let quantity = stockMap.get(product.id) || 0;
+        let enabled = quantity > 0;
+
+        // CRITICAL: Items with invalid prices cannot be sold
+        // Set inventory to 0 to make them unavailable in Wolt
+        const hasValidPrice = typeof product.price === 'number' && product.price >= 0;
+        if (!hasValidPrice) {
+          if (quantity > 0) {
+            log.warn(`[DeltaSync] Item ${woltSku} has invalid price (${product.price}). Setting inventory=0 in Wolt.`);
+          }
+          quantity = 0;
+          enabled = false;
+        }
 
         if (!woltData.has(woltSku)) {
           woltData.set(woltSku, {

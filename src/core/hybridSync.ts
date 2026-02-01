@@ -252,39 +252,76 @@ export class HybridSyncOrchestrator {
     // Build update payloads
     const itemUpdates: WoltItemUpdate[] = [];
     const inventoryUpdates: WoltInventoryItem[] = [];
+    const syncedSkus: string[] = [];
+    let invalidPriceCount = 0;
 
     for (const item of topItems) {
-      // Validate item data before sending to Wolt
-      if (!item.woltSku || typeof item.price !== 'number' || item.price < 0) {
-        log.warn(`[PrioritySync] Skipping item with invalid data: sku=${item.woltSku}, price=${item.price}`);
+      // Validate SKU exists
+      if (!item.woltSku) {
+        log.warn(`[PrioritySync] Skipping item without SKU`);
         continue;
       }
 
-      itemUpdates.push({
-        sku: item.woltSku,
-        enabled: item.rest > 0,
-        price: item.price
-      });
+      syncedSkus.push(item.woltSku);
 
-      inventoryUpdates.push({
-        sku: item.woltSku,
-        inventory: item.rest
-      });
+      // CRITICAL: Items with invalid prices cannot be sold
+      // Sync them with inventory=0 to make them unavailable in Wolt
+      const hasValidPrice = typeof item.price === 'number' && item.price >= 0;
+
+      if (!hasValidPrice) {
+        log.warn(`[PrioritySync] Item ${item.woltSku} has invalid price (${item.price}). Setting inventory=0 in Wolt.`);
+        invalidPriceCount++;
+
+        itemUpdates.push({
+          sku: item.woltSku,
+          enabled: false,  // Disabled because no valid price
+          price: 0  // Set price to 0 for invalid items
+        });
+
+        inventoryUpdates.push({
+          sku: item.woltSku,
+          inventory: 0  // Set inventory to 0 for invalid prices
+        });
+      } else {
+        // Valid price - sync normally
+        itemUpdates.push({
+          sku: item.woltSku,
+          enabled: item.rest > 0,
+          price: item.price
+        });
+
+        inventoryUpdates.push({
+          sku: item.woltSku,
+          inventory: item.rest
+        });
+      }
+    }
+
+    // Log summary
+    if (itemUpdates.length === 0) {
+      log.warn(`[PrioritySync] No items to sync`);
+      return 0;
+    }
+
+    if (invalidPriceCount > 0) {
+      log.info(`[PrioritySync] Syncing ${itemUpdates.length} items (${invalidPriceCount} with invalid prices set to inventory=0)`);
+    } else {
+      log.info(`[PrioritySync] Syncing ${itemUpdates.length} items`);
     }
 
     // Sync with adaptive batching
     await this.adaptiveSync(store, itemUpdates, inventoryUpdates);
 
-    // Mark as synced in state
+    // Mark successfully synced items in state
     const state = await this.stateManager.loadState(store.id);
-    for (const item of topItems) {
-      if (state[item.woltSku]) {
-        (state[item.woltSku] as any).syncedToWolt = true;
+    for (const sku of syncedSkus) {
+      if (state[sku]) {
+        (state[sku] as any).syncedToWolt = true;
       }
     }
     await this.stateManager.saveState(store.id, state);
 
-    return topItems.length;
+    return itemUpdates.length;
   }
 
   /**

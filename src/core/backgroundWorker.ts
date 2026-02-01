@@ -246,22 +246,51 @@ export class BackgroundWorker {
     const stockMap = new Map(inventory.map(i => [i.id, i.rest]));
     const detailMap = new Map(details.map(d => [d.id, d]));
 
+    let invalidPriceCount = 0;
+
     for (const { finaId, woltSku } of batchToSync) {
       const detail = detailMap.get(finaId);
-      const quantity = stockMap.get(finaId) || 0;
+      let quantity = stockMap.get(finaId) || 0;
 
       if (!detail) continue;
 
-      itemUpdates.push({
-        sku: woltSku,
-        enabled: quantity > 0,
-        price: detail.price
-      });
+      // CRITICAL: Items with invalid prices cannot be sold
+      // Sync them with inventory=0 to make them unavailable in Wolt
+      const hasValidPrice = typeof detail.price === 'number' && detail.price >= 0;
 
-      inventoryUpdates.push({
-        sku: woltSku,
-        inventory: quantity
-      });
+      if (!hasValidPrice) {
+        if (quantity > 0) {
+          log.warn(`[BackgroundWorker] Item ${woltSku} has invalid price (${detail.price}). Setting inventory=0 in Wolt.`);
+          invalidPriceCount++;
+        }
+
+        itemUpdates.push({
+          sku: woltSku,
+          enabled: false,  // Disabled because no valid price
+          price: 0  // Set price to 0 for invalid items
+        });
+
+        inventoryUpdates.push({
+          sku: woltSku,
+          inventory: 0  // Set inventory to 0 for invalid prices
+        });
+      } else {
+        // Valid price - sync normally
+        itemUpdates.push({
+          sku: woltSku,
+          enabled: quantity > 0,
+          price: detail.price
+        });
+
+        inventoryUpdates.push({
+          sku: woltSku,
+          inventory: quantity
+        });
+      }
+    }
+
+    if (invalidPriceCount > 0) {
+      log.info(`[BackgroundWorker] ${invalidPriceCount} items have invalid prices and will be set to inventory=0`);
     }
 
     // Send to Wolt with adaptive batching
